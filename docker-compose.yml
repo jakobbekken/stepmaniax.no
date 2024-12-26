@@ -1,0 +1,16 @@
+services:
+  prechecks:
+    build:
+      context: ./prechecks
+    volumes:
+      - ./.env:/app/.env
+      - ./.env.example:/app/.env.example
+    restart: no
+
+  backend:
+    build:
+      context: ./backend
+    stop_signal: SIGINT
+    restart: always
+    ports: 
+      - 8000:8000

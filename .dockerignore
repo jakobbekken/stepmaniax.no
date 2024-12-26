@@ -1,0 +1,11 @@
+# Ignore Dockerfile and other build artifacts
+Dockerfile
+*.pyc
+__pycache__
+*.pyo
+*.pyd
+
+# Ignore virtualenvs or other unnecessary folders
+venv
+env
+*.git
