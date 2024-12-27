@@ -1,0 +1,23 @@
+---
+import Header from "@components/layout/Header.astro";
+import Footer from "@components/layout/Footer.astro";
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html>
+  <head>
+    <title>{title} | SMX Norway</title>
+  </head>
+  <body class="bg-light min-h-screen text-dark flex flex-col">
+    <Header />
+    <main class="flex-grow pt-16">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
