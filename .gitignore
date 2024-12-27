@@ -18,3 +18,7 @@ venv/
 # Ignore IDE specific files
 .vscode/
 .idea/
+
+# Astro
+.astro/
+dist/
