@@ -1,0 +1,252 @@
+---
+import MainLayout from "@layouts/Main.astro";
+---
+
+<MainLayout title="Draft">
+  <div class="h-dvh max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 flex flex-col justify-center">
+    <div class="flex justify-between text-2xl pb-4" style="text-transform:uppercase">
+      <div id="p1-name">P1</div>
+      <div><span id="p1-score">0</span> - <span id="p2-score">0</span></div>
+      <div id="p2-name">P2</div>
+    </div>
+    <div id="charts" class="pb-4 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+    <div id="message-board" class="flex justify-center text-2xl pb-4">Game loading...</div>
+    <button id="share-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Share results</button>
+  </div>
+</MainLayout>
+
+<script>
+  const query = new URLSearchParams(window.location.search);
+  const p1 = query.get("p1");
+  const p2 = query.get("p2");
+  const chartIds = query.get("chart_ids");
+
+  const chartIdsArray: number[] = chartIds ? chartIds.split(',').map(Number) : [];
+
+  const getColor = (difficultyDisplay: string) => {
+    let colors = {
+      bgColor: "",
+      fgClass: "",
+    };
+
+    console.log(difficultyDisplay)
+    
+    switch (difficultyDisplay) {
+      case "wild":
+      case "wild+":
+        colors.bgColor = "#8822E8";
+        colors.fgClass = "text-white"
+        break;
+      case "hard":
+      case "hard+":
+        colors.bgColor = "#DD1F05"
+        colors.fgClass = "text-white"
+        break;
+      case "easy":
+      case "easy+":
+        colors.bgColor = "#FEBB0C"
+        colors.fgClass = "text-black"
+        break;
+      default:
+        colors.bgColor = "#45F800"
+        colors.fgClass = "text-black"
+        break;
+    }
+
+    return colors
+  }
+
+  document.getElementById("p1-name").textContent = p1;
+  document.getElementById("p2-name").textContent = p2;
+
+  const chartsElement = document.getElementById("charts")
+  const chartResults = [0, 0, 0, 0, 0]
+
+  if (chartIdsArray.length === 0) {
+    alert("No charts given.")
+  } else {
+    fetch("http://localhost:8000/charts_info", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ chart_ids: chartIdsArray }),
+    }).then((response) => response.json())
+    .then((charts) => {
+      chartsElement.innerHTML = charts.map((chart: any, index: number) => `
+        <div id="chart${index}" class="rounded-lg overflow-hidden" style="background-color: ${getColor(chart.difficulty_display).bgColor}">
+          <div class="font-bold relative bg-center text-white aspect-square bg-cover" style="background-image: url('${chart.cover_path}')">
+            <div class="chart-overlay absolute h-full w-full opacity-75 bg-red-600 hidden"></div>
+            <div class="absolute h-full w-full flex justify-center items-center text-xl">
+              <span class="overlay-text hidden" style="text-transform:uppercase">Banned<span>
+            </div>
+
+            
+            <div class="chart-overlay-p1 absolute top-0 h-1/2 w-full opacity-75 bg-green-600 hidden"></div>
+            <div class="chart-overlay-p2 absolute bottom-0 h-1/2 w-full opacity-75 bg-blue-600 hidden"></div>
+
+            <div id="p1${index}" class="absolute top-0 h-1/2 w-full flex justify-center items-center">
+              <span class="overlay-text-p1 hidden" style="text-transform:uppercase">${p1}</span>
+            </div>
+            <div id="p2${index}" class="absolute bottom-0 h-1/2 w-full flex justify-center items-center">
+              <span class="overlay-text-p2 hidden" style="text-transform:uppercase">${p2}</span>
+            </div>
+
+          </div>
+          <div class="${getColor(chart.difficulty_display).fgClass} text-center px-2 py-1 font-bold">${chart.title}</div>
+          <div class="border mx-2"></div>
+          <div class="${getColor(chart.difficulty_display).fgClass} flex justify-between px-2 py-1">
+            <div>${chart.bpm} BPM</div>
+            <div>${chart.difficulty_display.toUpperCase()} ${chart.difficulty}</div>
+          </div>
+        </div>
+      `).join("");
+
+      charts.forEach((chart: any, index: number) => {
+        document.getElementById(`chart${index}`)?.addEventListener("click", () => handleChartClick(index, chart));
+        document.getElementById(`p1${index}`)?.addEventListener("click", () => handlePlayerClick(index, chart, 1));
+        document.getElementById(`p2${index}`)?.addEventListener("click", () => handlePlayerClick(index, chart, 2));
+      });
+    }).catch((error) => {
+      console.error("Error fetching charts:", error);
+    });
+  }
+
+  const messageBoard = document.getElementById("message-board");
+  messageBoard.innerText = `${p1.toUpperCase()} bans the first chart`
+
+  let stage = 0;
+
+  const handleChartClick = (index: number, chart: any) => {
+    const chartElem= document.getElementById(`chart${index}`);
+    const overlay = chartElem.querySelector(".chart-overlay");
+    const text = chartElem.querySelector(".overlay-text");
+
+    const overlayP1 = chartElem.querySelector(".chart-overlay-p1");
+    const textP1 = chartElem.querySelector(".overlay-text-p1");
+    const overlayP2 = chartElem.querySelector(".chart-overlay-p2");
+    const textP2 = chartElem.querySelector(".overlay-text-p2");
+    if (!text.classList.contains("hidden")) {
+      return;
+    }
+
+    if (stage === 0) {
+      messageBoard.innerText = `${p2.toUpperCase()} bans the last chart`;
+    } else if (stage === 1) {
+      messageBoard.innerText = `${p1.toUpperCase()} starts picking, loser picks next`;
+    }
+
+    if (stage < 2) {
+      text.classList.remove("hidden");
+      overlay.classList.remove("hidden");
+      stage++;
+    } else {
+      stage++;
+      document.querySelectorAll(".chart-overlay-p1").forEach((elem) => {
+        elem.classList.add("hidden");
+      });
+      document.querySelectorAll(".overlay-text-p1").forEach((elem) => {
+        elem.classList.add("hidden");
+      });
+      document.querySelectorAll(".chart-overlay-p2").forEach((elem) => {
+        elem.classList.add("hidden");
+      });
+      document.querySelectorAll(".overlay-text-p2").forEach((elem) => {
+        elem.classList.add("hidden");
+      });
+
+      textP1.classList.remove("hidden");
+      overlayP1.classList.remove("hidden");
+      textP2.classList.remove("hidden");
+      overlayP2.classList.remove("hidden");
+    }
+
+  }
+
+
+  const scoreP1 = document.getElementById("p1-score");
+  const scoreP2 = document.getElementById("p2-score");
+  
+  const handlePlayerClick = (index: number, chart: any, player: number) => {
+    const chartElem = document.getElementById(`chart${index}`);
+    const overlay = chartElem.querySelector(".chart-overlay");
+    const text = chartElem.querySelector(".overlay-text");
+
+    const overlayP1 = chartElem.querySelector(".chart-overlay-p1");
+    const textP1 = chartElem.querySelector(".overlay-text-p1");
+    const overlayP2 = chartElem.querySelector(".chart-overlay-p2");
+    const textP2 = chartElem.querySelector(".overlay-text-p2");
+
+
+    if (textP1.classList.contains("hidden")) {
+      return;
+    }
+
+    textP1.classList.add("hidden");
+    overlayP1.classList.add("hidden");
+    textP2.classList.add("hidden");
+    overlayP2.classList.add("hidden");
+
+    if (player === 1) {
+      overlay.classList.remove("hidden");
+      overlay.classList.add("bg-green-600");
+      overlay.classList.remove("bg-red-600");
+      text.classList.remove("hidden");
+      text.textContent = p1;
+      scoreP1.innerText = (parseInt(scoreP1.innerText) + 1).toString();
+      messageBoard.innerHTML = `${p2.toUpperCase()} turn to pick`;
+      
+    } else {
+      overlay.classList.remove("hidden");
+      overlay.classList.add("bg-blue-600");
+      overlay.classList.remove("bg-red-600");
+      text.classList.remove("hidden");
+      text.textContent = p2;
+      scoreP2.innerText = (parseInt(scoreP2.innerText) + 1).toString();
+      messageBoard.innerHTML = `${p1.toUpperCase()} turn to pick`;
+    }
+
+    if (parseInt(scoreP1.innerText) === 2) {
+      messageBoard.innerHTML = `${p1.toUpperCase()} wins`
+    } else if (parseInt(scoreP2.innerText) === 2) {
+      messageBoard.innerHTML = `${p2.toUpperCase()} wins`
+    }
+  }
+
+  const shareBtn = document.getElementById("share-btn");
+
+  shareBtn.addEventListener("click", () => {
+    let winner = "None";
+
+    if (scoreP1.innerText === "2") {
+      winner = p1;
+    } else if (scoreP2.innerText === "2") {
+      winner = p2;
+    }
+
+
+
+
+    const link = `?p1=${p1}&p2=${p2}&chart_ids=${chartIds}&winner=${winner}`;
+  
+    navigator.clipboard.writeText(link)
+      .then(() => {
+        shareBtn.classList.add("bg-green-600");
+        shareBtn.classList.add("hover:bg-green-700");
+        shareBtn.classList.remove("bg-blue-500");
+        shareBtn.classList.remove("hover:bg-blue-700");
+        shareBtn.innerText = "Copied to clipboard"
+
+        setTimeout(() => {
+          shareBtn.innerText = "Share results";
+          shareBtn.classList.add("bg-blue-500");
+          shareBtn.classList.add("hover:bg-blue-700");
+          shareBtn.classList.remove("bg-green-600");
+          shareBtn.classList.remove("hover:bg-green-700");
+        }, 2000);
+      })
+      .catch(err => {
+        console.error("Failed to copy link: ", err);
+      });
+  });
+</script>
