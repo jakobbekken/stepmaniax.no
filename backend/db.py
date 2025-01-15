@@ -21,6 +21,74 @@ def create_tables():
 
     try:
 
+        # Songs
+        
+        # DROP TABLE IF EXISTS songs CASCADE;
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS songs (
+                id INTEGER PRIMARY KEY,
+                artist VARCHAR,
+                title VARCHAR,
+                genre VARCHAR,
+                bpm VARCHAR,
+                cover_path VARCHAR
+            );
+        """)
+        conn.commit()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM songs;
+        """)
+
+        songs_row_count = cursor.fetchone()[0]
+
+        if songs_row_count:
+            print("Table 'songs' already existed!")
+        else:
+            base_url = "https://api.smx.573.no/songs"
+            songs = []
+            take = 100
+            skip = 0
+
+            while True:
+                query = {
+                    "q": json.dumps({
+                        "_take": take,
+                        "_skip": skip
+                    })
+                }
+                response = requests.get(base_url, params=query)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if not data:
+                        break
+
+                    selected_data = [(song["id"], song["artist"], song["title"], song["genre"], song["cover_path"], song["bpm"]) for song in data]
+                    songs.extend(selected_data)
+                    skip += take
+
+                    if len(data) < take:
+                        break
+
+            insert_query = """
+                INSERT INTO songs (id, artist, title, genre, cover_path, bpm)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+
+            try:
+                cursor.executemany(insert_query, songs)
+                conn.commit()
+                print(f"{len(songs)} songs inserted successfully!")
+            except Exception as e:
+                conn.rollback()
+                print(f"Error inserting songs: {e}")
+
+            print("Table 'songs' created successfully!")
+
+
+
+            
         # Charts
 
         # DROP TABLE IF EXISTS charts;
@@ -86,70 +154,6 @@ def create_tables():
             print("Table 'charts' created successfully!")
 
 
-        # Songs
-        
-        # DROP TABLE IF EXISTS songs CASCADE;
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS songs (
-                id INTEGER PRIMARY KEY,
-                artist VARCHAR,
-                title VARCHAR,
-                genre VARCHAR,
-                bpm VARCHAR,
-                cover_path VARCHAR
-            );
-        """)
-        conn.commit()
-
-        cursor.execute("""
-            SELECT COUNT(*) FROM songs;
-        """)
-
-        songs_row_count = cursor.fetchone()[0]
-
-        if songs_row_count:
-            print("Table 'songs' already existed!")
-        else:
-            base_url = "https://api.smx.573.no/songs"
-            songs = []
-            take = 100
-            skip = 0
-
-            while True:
-                query = {
-                    "q": json.dumps({
-                        "_take": take,
-                        "_skip": skip
-                    })
-                }
-                response = requests.get(base_url, params=query)
-
-                if response.status_code == 200:
-                    data = response.json()
-                    if not data:
-                        break
-
-                    selected_data = [(song["id"], song["artist"], song["title"], song["genre"], song["cover_path"], song["bpm"]) for song in data]
-                    songs.extend(selected_data)
-                    skip += take
-
-                    if len(data) < take:
-                        break
-
-            insert_query = """
-                INSERT INTO songs (id, artist, title, genre, cover_path, bpm)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """
-
-            try:
-                cursor.executemany(insert_query, songs)
-                conn.commit()
-                print(f"{len(songs)} songs inserted successfully!")
-            except Exception as e:
-                conn.rollback()
-                print(f"Error inserting songs: {e}")
-
-            print("Table 'songs' created successfully!")
 
 
             
