@@ -1,0 +1,90 @@
+---
+import MainLayout from "@layouts/Main.astro";
+
+---
+
+<MainLayout title="Draft menu">
+  <div class="h-dvh max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 flex justify-center">
+    <div class="w-1/2 flex flex-col justify-center">
+      <h1 class="text-center text-2xl pb-4">Enter player names</h1>
+    </div>
+    <div class="w-1/2 flex flex-col justify-center gap-2">
+      <h1 class="text-center text-2xl pb-2">The epic draft of...</h1>
+      <div class="flex gap-2 justify-center pb-2">
+        <input id="p1" class="w-full border border-gray-300 text-gray-900 rounded text-center text-lg" type="text" placeholder="Player 1" />
+        <p>vs.</p>
+        <input id="p2" class="w-full border border-gray-300 text-gray-900 rounded text-center text-lg" type="text" placeholder="Player 2" />
+      </div>
+      <button id="div-1" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">Easy division</button>
+      <button id="div-2" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Hard division</button>
+      <button id="div-3" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded">Wild division</button>
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  const backend_url = import.meta.env.PUBLIC_BACKEND_URL;
+
+  const div1 = document.getElementById("div-1");
+  const div2 = document.getElementById("div-2");
+  const div3 = document.getElementById("div-3");
+
+  let p1 = "Player 1";
+  let p2 = "Player 2";
+
+
+  if (div1 && div2 && div3) {
+    div1.addEventListener("click", () => {
+      goToDraft(9, 13);
+    });
+    div2.addEventListener("click", () => {
+      goToDraft(14, 18);
+    });
+    div3.addEventListener("click", () => {
+      goToDraft(19, 23);
+    });
+  }
+
+  const goToDraft = async (a: number, b: number) => {
+
+    const p1Input = document.getElementById("p1") as HTMLInputElement;
+    const p2Input = document.getElementById("p2") as HTMLInputElement;
+
+    if (p1Input && p2Input) {
+      p1 = p1Input.value;
+      p2 = p2Input.value;
+      console.log(p1)
+    }
+
+    try {
+      const response = await fetch(`${backend_url}/draft/generate_link`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          p1: p1,
+          p2: p2,
+          difficulty_from: a,
+          difficulty_to: b,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch the link");
+      }
+
+      const data = await response.json();
+      const link = data.link;
+
+      window.location.href = link;
+    } catch (error) {
+      console.error("Error:", error)
+    }
+  }
+</script>
+
+<!-- p1 = data.get("p1") -->
+<!-- p2 = data.get("p2") -->
+<!-- difficulty_from = data.get("difficulty_from") -->
+<!-- difficulty_to = data.get("difficulty_to") -->
