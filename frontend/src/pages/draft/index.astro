@@ -67,10 +67,13 @@ import MainLayout from "@layouts/Main.astro";
   const chartsElement = document.getElementById("charts")
   // const chartResults = [0, 0, 0, 0, 0]
 
+  
+  const backend_url = import.meta.env.PUBLIC_BACKEND_URL;
+
   if (chartIdsArray.length === 0) {
     alert("No charts given.")
   } else if (chartsElement) {
-    fetch("http://localhost:8000/charts_info", {
+    fetch(`${backend_url}/charts_info`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
