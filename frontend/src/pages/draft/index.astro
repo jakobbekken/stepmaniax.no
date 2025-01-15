@@ -17,9 +17,9 @@ import MainLayout from "@layouts/Main.astro";
 
 <script>
   const query = new URLSearchParams(window.location.search);
-  const p1 = query.get("p1");
-  const p2 = query.get("p2");
-  const chartIds = query.get("chart_ids");
+  const p1 = query.get("p1") || "p1";
+  const p2 = query.get("p2") || "p2";
+  const chartIds = query.get("chart_ids") || "";
 
   const chartIdsArray: number[] = chartIds ? chartIds.split(',').map(Number) : [];
 
@@ -55,16 +55,21 @@ import MainLayout from "@layouts/Main.astro";
 
     return colors
   }
+  
+  const p1Name = document.getElementById("p1-name");
 
-  document.getElementById("p1-name").textContent = p1;
-  document.getElementById("p2-name").textContent = p2;
+  const p2Name = document.getElementById("p2-name");
+  if (p1Name && p2Name) {
+    p1Name.textContent = p1;
+    p2Name.textContent = p2;
+  }
 
   const chartsElement = document.getElementById("charts")
-  const chartResults = [0, 0, 0, 0, 0]
+  // const chartResults = [0, 0, 0, 0, 0]
 
   if (chartIdsArray.length === 0) {
     alert("No charts given.")
-  } else {
+  } else if (chartsElement) {
     fetch("http://localhost:8000/charts_info", {
       method: "POST",
       headers: {
@@ -102,10 +107,10 @@ import MainLayout from "@layouts/Main.astro";
         </div>
       `).join("");
 
-      charts.forEach((chart: any, index: number) => {
-        document.getElementById(`chart${index}`)?.addEventListener("click", () => handleChartClick(index, chart));
-        document.getElementById(`p1${index}`)?.addEventListener("click", () => handlePlayerClick(index, chart, 1));
-        document.getElementById(`p2${index}`)?.addEventListener("click", () => handlePlayerClick(index, chart, 2));
+      charts.forEach((_: any, index: number) => {
+        document.getElementById(`chart${index}`)?.addEventListener("click", () => handleChartClick(index));
+        document.getElementById(`p1${index}`)?.addEventListener("click", () => handlePlayerClick(index, 1));
+        document.getElementById(`p2${index}`)?.addEventListener("click", () => handlePlayerClick(index, 2));
       });
     }).catch((error) => {
       console.error("Error fetching charts:", error);
@@ -113,12 +118,19 @@ import MainLayout from "@layouts/Main.astro";
   }
 
   const messageBoard = document.getElementById("message-board");
-  messageBoard.innerText = `${p1.toUpperCase()} bans the first chart`
+  if (messageBoard) {
+    messageBoard.innerText = `${p1.toUpperCase()} bans the first chart`
+  }
 
   let stage = 0;
 
-  const handleChartClick = (index: number, chart: any) => {
-    const chartElem= document.getElementById(`chart${index}`);
+  const handleChartClick = (index: number) => {
+    const chartElem = document.getElementById(`chart${index}`);
+
+    if (!chartElem) {
+      return;
+    }
+
     const overlay = chartElem.querySelector(".chart-overlay");
     const text = chartElem.querySelector(".overlay-text");
 
@@ -126,7 +138,28 @@ import MainLayout from "@layouts/Main.astro";
     const textP1 = chartElem.querySelector(".overlay-text-p1");
     const overlayP2 = chartElem.querySelector(".chart-overlay-p2");
     const textP2 = chartElem.querySelector(".overlay-text-p2");
-    if (!text.classList.contains("hidden")) {
+
+    const chartOverlaysP1 = document.querySelectorAll(".chart-overlay-p1");
+    const chartTextsP1 = document.querySelectorAll(".chart-text-p1");
+    const chartOverlaysP2 = document.querySelectorAll(".chart-overlay-p2");
+    const chartTextsP2 = document.querySelectorAll(".chart-text-p2");
+    if (
+      !overlay ||
+      !text ||
+      !overlayP1 ||
+      !overlayP2 ||
+      !textP1 ||
+      !textP2 ||
+      !chartOverlaysP1 ||
+      !chartTextsP1 ||
+      !chartOverlaysP2 ||
+      !chartTextsP2 ||
+      !messageBoard
+    ) {
+      return;
+    }
+
+    if (text.classList.contains("hidden")) {
       return;
     }
 
@@ -142,16 +175,16 @@ import MainLayout from "@layouts/Main.astro";
       stage++;
     } else {
       stage++;
-      document.querySelectorAll(".chart-overlay-p1").forEach((elem) => {
+      chartOverlaysP1.forEach((elem) => {
         elem.classList.add("hidden");
       });
-      document.querySelectorAll(".overlay-text-p1").forEach((elem) => {
+      chartTextsP1.forEach((elem) => {
         elem.classList.add("hidden");
       });
-      document.querySelectorAll(".chart-overlay-p2").forEach((elem) => {
+      chartOverlaysP2.forEach((elem) => {
         elem.classList.add("hidden");
       });
-      document.querySelectorAll(".overlay-text-p2").forEach((elem) => {
+      chartTextsP2.forEach((elem) => {
         elem.classList.add("hidden");
       });
 
@@ -167,8 +200,11 @@ import MainLayout from "@layouts/Main.astro";
   const scoreP1 = document.getElementById("p1-score");
   const scoreP2 = document.getElementById("p2-score");
   
-  const handlePlayerClick = (index: number, chart: any, player: number) => {
+  const handlePlayerClick = (index: number, player: number) => {
     const chartElem = document.getElementById(`chart${index}`);
+    if (!chartElem) {
+      return;
+    }
     const overlay = chartElem.querySelector(".chart-overlay");
     const text = chartElem.querySelector(".overlay-text");
 
@@ -177,6 +213,20 @@ import MainLayout from "@layouts/Main.astro";
     const overlayP2 = chartElem.querySelector(".chart-overlay-p2");
     const textP2 = chartElem.querySelector(".overlay-text-p2");
 
+
+    if (
+      !scoreP1 ||
+      !scoreP2 ||
+      !overlay ||
+      !text ||
+      !overlayP1 ||
+      !overlayP2 ||
+      !textP1 ||
+      !textP2 ||
+      !messageBoard
+    ) {
+      return;
+    }
 
     if (textP1.classList.contains("hidden")) {
       return;
@@ -215,38 +265,42 @@ import MainLayout from "@layouts/Main.astro";
 
   const shareBtn = document.getElementById("share-btn");
 
-  shareBtn.addEventListener("click", () => {
-    let winner = "None";
+  if (shareBtn && scoreP1 && scoreP2) {
 
-    if (scoreP1.innerText === "2") {
-      winner = p1;
-    } else if (scoreP2.innerText === "2") {
-      winner = p2;
-    }
+    shareBtn.addEventListener("click", () => {
+      let winner = "None";
+
+      if (scoreP1.innerText === "2") {
+        winner = p1;
+      } else if (scoreP2.innerText === "2") {
+        winner = p2;
+      }
 
 
 
 
-    const link = `?p1=${p1}&p2=${p2}&chart_ids=${chartIds}&winner=${winner}`;
+      const link = `?p1=${p1}&p2=${p2}&chart_ids=${chartIds}&winner=${winner}`;
+    
+      navigator.clipboard.writeText(link)
+        .then(() => {
+          shareBtn.classList.add("bg-green-600");
+          shareBtn.classList.add("hover:bg-green-700");
+          shareBtn.classList.remove("bg-blue-500");
+          shareBtn.classList.remove("hover:bg-blue-700");
+          shareBtn.innerText = "Copied to clipboard"
+
+          setTimeout(() => {
+            shareBtn.innerText = "Share results";
+            shareBtn.classList.add("bg-blue-500");
+            shareBtn.classList.add("hover:bg-blue-700");
+            shareBtn.classList.remove("bg-green-600");
+            shareBtn.classList.remove("hover:bg-green-700");
+          }, 2000);
+        })
+        .catch(err => {
+          console.error("Failed to copy link: ", err);
+        });
+    });
+  }
   
-    navigator.clipboard.writeText(link)
-      .then(() => {
-        shareBtn.classList.add("bg-green-600");
-        shareBtn.classList.add("hover:bg-green-700");
-        shareBtn.classList.remove("bg-blue-500");
-        shareBtn.classList.remove("hover:bg-blue-700");
-        shareBtn.innerText = "Copied to clipboard"
-
-        setTimeout(() => {
-          shareBtn.innerText = "Share results";
-          shareBtn.classList.add("bg-blue-500");
-          shareBtn.classList.add("hover:bg-blue-700");
-          shareBtn.classList.remove("bg-green-600");
-          shareBtn.classList.remove("hover:bg-green-700");
-        }, 2000);
-      })
-      .catch(err => {
-        console.error("Failed to copy link: ", err);
-      });
-  });
 </script>
